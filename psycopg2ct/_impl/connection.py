@@ -279,7 +279,11 @@ class Connection(object):
         return libpq.PQbackendPID(self._pgconn)
 
     def get_parameter_status(self, parameter):
-        return libpq.PQparameterStatus(self._pgconn, parameter)
+        rv = libpq.PQparameterStatus(self._pgconn, parameter)
+        if not isinstance(rv, unicode):
+            rv = rv.decode('ascii')
+
+        return rv
 
     def get_transaction_status(self):
         return libpq.PQtransactionStatus(self._pgconn)
