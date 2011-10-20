@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import math
+import sys
 
 from psycopg2ct._impl import libpq
 from psycopg2ct._impl.encodings import encodings
@@ -261,13 +262,8 @@ def _getquoted(param, conn):
 
 built_in_adapters = {
     bool: Boolean,
-    str: QuotedString,
-    unicode: QuotedString,
     list: List,
     bytearray: Binary,
-    buffer: Binary,
-    int: Int,
-    long: Long,
     float: Float,
     datetime.date: DateTime, # DateFromPY
     datetime.datetime: DateTime, # TimestampFromPy
@@ -276,11 +272,18 @@ built_in_adapters = {
     decimal.Decimal: Decimal,
 }
 
-try:
+if sys.version_info[:2] < (3, 0):
+    built_in_adapters[buffer] = Binary
+    built_in_adapters[int] = Int
+    built_in_adapters[long] = Long
+    built_in_adapters[str] = QuotedString
+    built_in_adapters[unicode] = QuotedString
+else:
+    built_in_adapters[int] = Long
+    built_in_adapters[str] = QuotedString
+
+if sys.version_info[:2] > (2, 6):
     built_in_adapters[memoryview] = Binary
-except NameError:
-    # Python 2.6
-    pass
 
 for k, v in built_in_adapters.iteritems():
     adapters[(k, ISQLQuote)] = v
