@@ -190,29 +190,29 @@ class build_py(_build_py):
                 fname = os.path.join(path, 'libpq.so')
 
         if fname:
-            print
-            print '=' * 80
-            print
-            print 'Found libpq at:'
-            print ' -> %s' %  fname
-            print
-            print '=' * 80
+            print('')
+            print('=' * 80)
+            print('')
+            print('Found libpq at:')
+            print(' -> %s' %  fname)
+            print('')
+            print('=' * 80)
             return fname
         else:
             fname = ctypes.util.find_library('pq')
-            print
-            print '=' * 80
-            print
-            print 'Unable to find the libpq for your platform in:'
-            print ' -> %s' %  path
-            print
-            print 'Ignoring pg_config, trying ctypes.util.find_library()'
+            print('')
+            print('=' * 80)
+            print('')
+            print('Unable to find the libpq for your platform in:')
+            print(' -> %s' %  path)
+            print('')
+            print('Ignoring pg_config, trying ctypes.util.find_library()')
             if fname:
-                print ' -> OK (%s)' % fname
+                print(' -> OK (%s)' % fname)
             else:
-                print ' -> FAILED'
-            print
-            print '=' * 80
+                print(' -> FAILED')
+            print('')
+            print('=' * 80)
             if not fname:
                 sys.exit(1)
             return fname
