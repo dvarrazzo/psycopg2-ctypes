@@ -80,7 +80,7 @@ def normalize(name):
 
 # Include a normalized version of the encodings above
 # (all uppercase, no - or _)
-for k, v in encodings.items():
+for k, v in list(encodings.iteritems()):
     encodings[normalize(k)] = v
 
 del k, v
