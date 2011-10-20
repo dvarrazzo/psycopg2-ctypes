@@ -268,5 +268,6 @@ setup(
     test_suite='psycopg2ct.tests.suite',
     description=README[0].strip(),
     long_description=''.join(README),
-    packages=['psycopg2ct', 'psycopg2ct._impl', 'psycopg2ct.tests'],
+    packages=['psycopg2ct', 'psycopg2ct._impl', 'psycopg2ct.tests',
+        'psycopg2ct.tests.stub', 'psycopg2ct.tests.psycopg2_tests'],
 )
