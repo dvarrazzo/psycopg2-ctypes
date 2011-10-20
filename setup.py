@@ -9,7 +9,16 @@ import ctypes.util
 
 from setuptools import setup
 
-from distutils.command.build_py import build_py as _build_py
+try:
+    from distutils.command.build_py import build_py_2to3 as build_py
+except ImportError:
+    from distutils.command.build_py import build_py
+else:
+    # Configure distutils to run our custom 2to3 fixers as well
+    from lib2to3.refactor import get_fixers_from_package
+    build_py.fixer_names = get_fixers_from_package('lib2to3.fixes')
+    build_py.fixer_names.append('fix_b')
+    sys.path.insert(0, 'scripts')
 
 PLATFORM_IS_WINDOWS = sys.platform.lower().startswith('win')
 
@@ -138,20 +147,20 @@ or with the pg_config option in 'setup.cfg'.
         return pg_config_path
 
 
-class build_py(_build_py):
+class psycopg_build_py(build_py):
 
-    user_options = _build_py.user_options[:]
+    user_options = build_py.user_options[:]
     user_options.extend([
         ('pg-config=', None,
          "The name of the pg_config binary and/or full path to find it"),
     ])
 
     def initialize_options(self):
-        _build_py.initialize_options(self)
+        build_py.initialize_options(self)
         self.pg_config = None
 
     def finalize_options(self):
-        _build_py.finalize_options(self)
+        build_py.finalize_options(self)
         pg_config_helper = PostgresConfig(self)
         self.libpq_path = self.find_libpq(pg_config_helper)
         self.libpq_version = self.find_version(pg_config_helper)
@@ -227,7 +236,7 @@ class build_py(_build_py):
                 fh.write('PG_LIBRARY = "%s"\n' % self.libpq_path)
                 fh.write('PG_VERSION = %s\n' % self.libpq_version)
 
-        _build_py.run(self)
+        build_py.run(self)
 
 README = []
 with open('README', 'r') as fh:
@@ -242,7 +251,7 @@ setup(
     url='http://github.com/mvantellingen/psycopg2-ctypes',
     version='0.3',
     cmdclass={
-        'build_py': build_py
+        'build_py': psycopg_build_py
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
