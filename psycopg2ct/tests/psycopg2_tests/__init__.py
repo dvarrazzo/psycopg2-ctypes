@@ -24,6 +24,10 @@
 
 import os
 import sys
+
+# hack the pythonpath to find the fake psycopg2 module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'stub'))
+
 from testconfig import dsn
 from testutils import unittest
 
