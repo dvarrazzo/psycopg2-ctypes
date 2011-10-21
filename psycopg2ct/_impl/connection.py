@@ -744,19 +744,20 @@ class Connection(object):
         """Return the exception to be raise'd"""
         if not pgres:
             if not msg:
-                msg = libpq.PQerrorMessage(self._pgconn)
+                msg = self.ensure_text(libpq.PQerrorMessage(self._pgconn))
             return exceptions.OperationalError(msg)
 
         if msg is None:
-            msg = libpq.PQresultErrorMessage(pgres)
+            msg = self.ensure_text(libpq.PQresultErrorMessage(pgres))
 
         exc_type = None
         if msg is not None:
-            code = libpq.PQresultErrorField(pgres, libpq.PG_DIAG_SQLSTATE)
+            code = self.ensure_text(
+                libpq.PQresultErrorField(pgres, libpq.PG_DIAG_SQLSTATE))
             if code is not None:
                 exc_type = util.get_exception_for_sqlstate(code)
         else:
-            msg = libpq.PQerrorMessage(self._pgconn)
+            msg = self.ensure_text(libpq.PQerrorMessage(self._pgconn))
 
         if not exc_type:
             exc_type = exceptions.OperationalError
