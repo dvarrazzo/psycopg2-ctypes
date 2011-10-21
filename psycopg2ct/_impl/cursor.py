@@ -680,7 +680,8 @@ class Cursor(object):
 
     def _pq_fetch(self):
         pgstatus = libpq.PQresultStatus(self._pgres)
-        self._statusmessage = libpq.PQcmdStatus(self._pgres)
+        self._statusmessage = self._conn.ensure_text(
+            libpq.PQcmdStatus(self._pgres))
 
         self._no_tuples = True
         self._rownumber = 0
