@@ -734,8 +734,8 @@ class Connection(object):
 
             notify = Notify(
                 pg_notify.contents.be_pid,
-                pg_notify.contents.relname,
-                pg_notify.contents.extra)
+                self.ensure_text(pg_notify.contents.relname),
+                self.ensure_text(pg_notify.contents.extra))
             self._notifies.append(notify)
 
             libpq.PQfreemem(pg_notify)
