@@ -1,3 +1,4 @@
+import sys
 import threading
 import weakref
 from functools import wraps
@@ -89,6 +90,7 @@ class Connection(object):
         self.dsn = dsn
         self.status = consts.STATUS_SETUP
         self._encoding = None
+        self._py_enc = None
 
         self._closed = False
         self._cancel = None
@@ -279,11 +281,8 @@ class Connection(object):
         return libpq.PQbackendPID(self._pgconn)
 
     def get_parameter_status(self, parameter):
-        rv = libpq.PQparameterStatus(self._pgconn, parameter)
-        if not isinstance(rv, unicode):
-            rv = rv.decode('ascii')
-
-        return rv
+        return self.ensure_text(
+            libpq.PQparameterStatus(self._pgconn, parameter))
 
     def get_transaction_status(self):
         return libpq.PQtransactionStatus(self._pgconn)
@@ -765,6 +764,13 @@ class Connection(object):
 
     def _have_wait_callback(self):
         return bool(_green_callback)
+
+    if sys.version_info[0] < 3:
+        def ensure_text(self, s):
+            return s
+    else:
+        def ensure_text(self, s):
+            return s.decode(self._py_enc or 'ascii', 'replace')
 
 
 def connect(dsn=None, database=None, host=None, port=None, user=None,
