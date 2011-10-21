@@ -541,7 +541,7 @@ class Connection(object):
 
             # If the current datestyle is not compatible (not ISO) then
             # force it to ISO
-            datestyle = libpq.PQparameterStatus(self._pgconn, 'DateStyle')
+            datestyle = self.get_parameter_status('DateStyle')
             if not datestyle or not datestyle.startswith('ISO'):
                 self.status = consts.STATUS_DATESTYLE
 
@@ -581,7 +581,7 @@ class Connection(object):
         with self._lock:
             # If the current datestyle is not compatible (not ISO) then
             # force it to ISO
-            datestyle = libpq.PQparameterStatus(self._pgconn, 'DateStyle')
+            datestyle = self.get_parameter_status('DateStyle')
             if not datestyle or not datestyle.startswith('ISO'):
                 self.status = consts.STATUS_DATESTYLE
                 self._set_guc('datestyle', 'ISO')
@@ -703,8 +703,7 @@ class Connection(object):
         self._py_enc = _enc.encodings[self._encoding]
 
     def _get_equote(self):
-        ret = libpq.PQparameterStatus(
-            self._pgconn, 'standard_conforming_strings')
+        ret = self.get_parameter_status('standard_conforming_strings')
         return ret and ret == 'off'
 
     def _is_busy(self):
