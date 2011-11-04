@@ -193,45 +193,36 @@ def TimestampFromTicks(ticks):
 class QuotedString(_BaseAdapter):
     def __init__(self, obj):
         super(QuotedString, self).__init__(obj)
-        self.encoding = "latin-1"
 
     def prepare(self, conn):
         self._conn = conn
-        self.encoding = conn.encoding
 
     def getquoted(self):
-
-        obj = self._wrapped
-        if isinstance(self._wrapped, unicode):
-            encoding = encodings[self.encoding]
-            obj = obj.encode(encoding)
-        string = str(obj)
+        string = self._ensure_bytes(self._wrapped)
         length = len(string)
 
-        if not self._conn:
-            to = libpq.create_string_buffer('\0', (length * 2) + 1)
-            libpq.PQescapeString(to, string, length)
-            return "'%s'" % to.value
+        to = libpq.create_string_buffer(b'\0', (length * 2) + 1)
 
-        if PG_VERSION < 0x090000:
-            to = libpq.create_string_buffer('\0', (length * 2) + 1)
+        if self._conn and PG_VERSION >= 0x080104:
             err = libpq.c_int()
             libpq.PQescapeStringConn(
                 self._conn._pgconn, to, string, length, err)
 
-            if self._conn and self._conn._equote:
-                return "E'%s'" % to.value
-            return "'%s'" % to.value
+        else:
+            libpq.PQescapeString(to, string, length)
 
-        data_pointer = libpq.PQescapeLiteral(
-            self._conn._pgconn, string, length)
-        data = libpq.cast(data_pointer, libpq.c_char_p).value
-        libpq.PQfreemem(data_pointer)
-        return data
+        if self._conn and self._conn._equote:
+            return b"E'" + to.value + b"'"
+        else:
+            return b"'" + to.value + b"'"
 
 
 def adapt(value, proto=ISQLQuote, alt=None):
     """Return the adapter for the given value"""
+    conform = getattr(value, '__conform__', None)
+    if conform is not None:
+        return conform(proto)
+
     obj_type = type(value)
     try:
         return adapters[(obj_type, proto)](value)
@@ -242,21 +233,20 @@ def adapt(value, proto=ISQLQuote, alt=None):
             except KeyError:
                 pass
 
-    conform = getattr(value, '__conform__', None)
-    if conform is not None:
-        return conform(proto)
     raise ProgrammingError("can't adapt type '%s'" % obj_type.__name__)
 
 
 def _getquoted(param, conn):
     """Helper method"""
     if param is None:
-        return 'NULL'
+        return b'NULL'
+
     adapter = adapt(param)
     try:
         adapter.prepare(conn)
     except AttributeError:
         pass
+
     return adapter.getquoted()
 
 
