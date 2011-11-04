@@ -198,7 +198,7 @@ class Connection(object):
     def _set_guc(self, name, value):
         """Set the value of a configuration parameter."""
         if value.lower() != 'default':
-            value = util.quote_string(self, value)
+            value = self.ensure_text(util.quote_string(self, value))
         self._execute_command('SET %s TO %s' % (name, value))
 
     def _set_guc_onoff(self, name, value):
@@ -594,6 +594,8 @@ class Connection(object):
             self.status = consts.STATUS_BEGIN
 
     def _execute_command(self, command):
+        command = self.ensure_bytes(command)
+
         with self._lock:
             if _green_callback:
                 pgres = self._execute_green(command)

@@ -4,7 +4,7 @@ import math
 import sys
 
 from psycopg2ct._impl import libpq
-from psycopg2ct._impl.encodings import encodings
+from psycopg2ct._impl import util
 from psycopg2ct._impl.exceptions import ProgrammingError
 from psycopg2ct._config import PG_VERSION
 from psycopg2ct.tz import LOCAL as TZ_LOCAL
@@ -19,12 +19,17 @@ class _BaseAdapter(object):
         self._conn = None
 
     def __str__(self):
-        return self.getquoted()
+        return str(self.getquoted())
 
     @property
     def adapted(self):
         return self._wrapped
 
+    def _ensure_bytes(self, s):
+        if self._conn:
+            return self._conn.ensure_bytes(s)
+        else:
+            return util.ensure_bytes(s)
 
 class ISQLQuote(_BaseAdapter):
     def getquoted(self):
@@ -32,8 +37,11 @@ class ISQLQuote(_BaseAdapter):
 
 
 class AsIs(_BaseAdapter):
+    def prepare(self, connection):
+        self._conn = connection
+
     def getquoted(self):
-        return str(self._wrapped)
+        return self._ensure_bytes(str(self._wrapped))
 
 
 class Binary(_BaseAdapter):
@@ -45,30 +53,30 @@ class Binary(_BaseAdapter):
 
     def getquoted(self):
         if self._wrapped is None:
-            return 'NULL'
+            return b'NULL'
 
         to_length = libpq.c_uint()
 
-        if self._conn:
+        if self._conn and PG_VERSION >= 0x080104:
             data_pointer = libpq.PQescapeByteaConn(
-                self._conn._pgconn, str(self._wrapped), len(self._wrapped),
+                self._conn._pgconn, self._wrapped, len(self._wrapped),
                 libpq.pointer(to_length))
         else:
             data_pointer = libpq.PQescapeBytea(
-                self._wrapped, len(self._wrapped), libpq.pointer(to_length))
+                self._wrapped, self._wrapped, libpq.pointer(to_length))
 
         data = data_pointer[:to_length.value - 1]
         libpq.PQfreemem(data_pointer)
 
         if self._conn and self._conn._equote:
-            return r"E'%s'::bytea" % data
-
-        return r"'%s'::bytea" % data
+            return b"E'" + data + b"'::bytea"
+        else:
+            return b"'" + data + b"'::bytea"
 
 
 class Boolean(_BaseAdapter):
     def getquoted(self):
-        return 'true' if self._wrapped else 'false'
+        return b'true' if self._wrapped else b'false'
 
 
 class DateTime(_BaseAdapter):
@@ -76,7 +84,7 @@ class DateTime(_BaseAdapter):
         obj = self._wrapped
         if isinstance(obj, datetime.timedelta):
             # TODO: microseconds
-            return "'%d days %d.0 seconds'::interval" % (
+            rv = "'%d days %d.0 seconds'::interval" % (
                 int(obj.days), int(obj.seconds))
         else:
             iso = obj.isoformat()
@@ -88,7 +96,9 @@ class DateTime(_BaseAdapter):
                 format = 'time'
             else:
                 format = 'date'
-            return "'%s'::%s" % (str(iso), format)
+            rv = "'%s'::%s" % (str(iso), format)
+
+        return self._ensure_bytes(rv)
 
 
 def Date(year, month, day):
@@ -109,27 +119,33 @@ class Decimal(_BaseAdapter):
             # Prepend a space in front of negative numbers
             if value.startswith('-'):
                 value = ' ' + value
-            return value
-        return "'NaN'::numeric"
+
+            return self._ensure_bytes(value)
+
+        else:
+            return b"'NaN'::numeric"
 
 
 class Float(ISQLQuote):
     def getquoted(self):
         n = float(self._wrapped)
         if math.isnan(n):
-            return "'NaN'::float"
+            return b"'NaN'::float"
+
         elif math.isinf(n):
             if n > 0:
-                return "'Infinity'::float"
+                return b"'Infinity'::float"
             else:
-                return "'-Infinity'::float"
+                return b"'-Infinity'::float"
+
         else:
             value = repr(self._wrapped)
 
             # Prepend a space in front of negative numbers
             if value.startswith('-'):
                 value = ' ' + value
-            return value
+
+            return self._ensure_bytes(value)
 
 
 class Int(_BaseAdapter):
@@ -139,7 +155,8 @@ class Int(_BaseAdapter):
         # Prepend a space in front of negative numbers
         if value.startswith('-'):
             value = ' ' + value
-        return value
+
+        return self._ensure_bytes(value)
 
 
 class List(_BaseAdapter):
@@ -150,13 +167,13 @@ class List(_BaseAdapter):
     def getquoted(self):
         length = len(self._wrapped)
         if length == 0:
-            return "'{}'"
+            return b"'{}'"
 
         quoted = [None] * length
         for i in xrange(length):
             obj = self._wrapped[i]
-            quoted[i] = str(_getquoted(obj, self._conn))
-        return "ARRAY[%s]" % ", ".join(quoted)
+            quoted[i] = _getquoted(obj, self._conn)
+        return b"ARRAY[%s]" % b", ".join(quoted)
 
 
 class Long(_BaseAdapter):
@@ -166,7 +183,8 @@ class Long(_BaseAdapter):
         # Prepend a space in front of negative numbers
         if value.startswith('-'):
             value = ' ' + value
-        return value
+
+        return self._ensure_bytes(value)
 
 
 def Time(hour, minutes, seconds, tzinfo=None):

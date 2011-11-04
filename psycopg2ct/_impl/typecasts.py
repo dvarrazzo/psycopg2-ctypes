@@ -61,14 +61,14 @@ def typecast(caster, value, length, cursor):
 
 
 def parse_unknown(value, length, cursor):
-    if value != '{}':
-        return value
+    if value != b'{}':
+        return cursor._conn.ensure_text(value)
     else:
         return []
 
 
 def parse_string(value, length, cursor):
-    return value
+    return cursor._conn.ensure_text(value)
 
 
 def parse_longinteger(value, length, cursor):
@@ -84,7 +84,7 @@ def parse_float(value, length, cursor):
 
 
 def parse_decimal(value, length, cursor):
-    return decimal.Decimal(value)
+    return decimal.Decimal(cursor._conn.ensure_text(value))
 
 
 def parse_binary(value, length, cursor):
@@ -98,7 +98,7 @@ def parse_binary(value, length, cursor):
 
 
 def parse_boolean(value, length, cursor):
-    return value[0] == "t"
+    return value[0] == b"t"
 
 
 class parse_array(object):
@@ -199,18 +199,18 @@ def _parse_time(time, cursor):
 
 
 def parse_datetime(value, length, cursor):
-    date, time = value.split(' ')
+    date, time = cursor._conn.ensure_text(value).split(' ')
     date = _parse_date(date)
     time = _parse_time(time, cursor)
     return datetime.datetime.combine(date, time)
 
 
 def parse_date(value, length, cursor):
-    return _parse_date(value)
+    return _parse_date(cursor._conn.ensure_text(value))
 
 
 def parse_time(value, length, cursor):
-    return _parse_time(value, cursor)
+    return _parse_time(cursor._conn.ensure_text(value), cursor)
 
 
 def parse_interval(value, length, cursor):

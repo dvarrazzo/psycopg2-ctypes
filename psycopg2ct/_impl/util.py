@@ -2,7 +2,6 @@ import sys
 
 from psycopg2ct._impl import exceptions
 from psycopg2ct._impl import libpq
-from psycopg2ct._impl.adapters import QuotedString
 
 
 if sys.version_info[0] < 3:
@@ -57,6 +56,7 @@ def pq_get_last_result(pgconn):
 
 
 def quote_string(conn, value):
+    from psycopg2ct._impl.adapters import QuotedString
     obj = QuotedString(value)
     obj.prepare(conn)
     return obj.getquoted()
