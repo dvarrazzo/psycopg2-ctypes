@@ -232,7 +232,7 @@ class Cursor(object):
 
         if self._name:
             self._query = b''.join([b'DECLARE "',
-                self._ensure_bytes(self._name),
+                self._conn.ensure_bytes(self._name),
                 b'" CURSOR ',
                 self._withhold and b"WITH" or b"WITHOUT",
                 b' HOLD FOR ',
@@ -643,6 +643,7 @@ class Cursor(object):
 
 
     def _pq_execute(self, query, async=False):
+        query = self._conn.ensure_bytes(query)
         pgconn = self._conn._pgconn
         if not async:
             with self._conn._lock:
