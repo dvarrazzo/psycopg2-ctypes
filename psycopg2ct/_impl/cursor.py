@@ -221,9 +221,7 @@ class Cursor(object):
                 raise ProgrammingError(
                     "can't use a named cursor outside of transactions")
 
-        if isinstance(query, unicode):
-            query = query.encode(self._conn._py_enc)
-
+        query = self._conn.ensure_bytes(query)
         if parameters is not None:
             self._query = _combine_cmd_params(query, parameters, conn)
         else:
@@ -233,10 +231,12 @@ class Cursor(object):
         self._clear_pgres()
 
         if self._name:
-            self._query = 'DECLARE "%s" CURSOR %s HOLD FOR %s' % (
-                self._name,
-                self._withhold and "WITH" or "WITHOUT", # youuuuu
-                self._query)
+            self._query = b''.join([b'DECLARE "',
+                self._ensure_bytes(self._name),
+                b'" CURSOR ',
+                self._withhold and b"WITH" or b"WITHOUT",
+                b' HOLD FOR ',
+                self._query])
 
         self._pq_execute(self._query, conn._async)
 
@@ -848,30 +848,34 @@ def _combine_cmd_params(cmd, params, conn):
 
     # Return when no argument binding is required.  Note that this method is
     # not called from .execute() if `params` is None.
-    if '%' not in cmd:
+    if b'%' not in cmd:
         return cmd
 
-    idx = 0
     param_num = 0
-    arg_values = None
     named_args_format = None
 
     def check_format_char(format_char, pos):
         """Raise an exception when the format_char is unsupported"""
-        if format_char not in 's ':
+        # TODO: why there is a space?
+        if format_char not in b's ':
             raise ValueError(
                 "unsupported format character '%s' (0x%x) at index %d" %
                 (format_char, ord(format_char), pos))
 
-    cmd_length = len(cmd)
-    while idx < cmd_length:
+    out = []
+    start = 0
+    end = cmd.find(b'%')
+    while end > -1 and end +1 < len(cmd):
+
+        out.append(cmd[start:end])
 
         # Escape
-        if cmd[idx] == '%' and cmd[idx + 1] == '%':
-            idx += 1
+        if cmd[end + 1] == b'%':
+            out.append(cmd[start:end])
+            start = end + 1
 
         # Named parameters
-        elif cmd[idx] == '%' and cmd[idx + 1] == '(':
+        elif cmd[end + 1] == b'(':
 
             # Validate that we don't mix formats
             if named_args_format is False:
@@ -880,22 +884,21 @@ def _combine_cmd_params(cmd, params, conn):
                 named_args_format = True
 
             # Check for incomplate placeholder
-            max_lookahead = cmd.find('%', idx + 2)
-            end = cmd.find(')', idx + 2, max_lookahead)
-            if end < 0:
+            max_lookahead = cmd.find(b'%', end + 2)
+            pend = cmd.find(b')', end + 2, max_lookahead)
+            if pend < 0:
                 raise ProgrammingError(
                     "incomplete placeholder: '%(' without ')'")
 
-            key = cmd[idx + 2:end]
-            if arg_values is None:
-                arg_values = {}
-            if key not in arg_values:
-                arg_values[key] = _getquoted(params[key], conn)
+            check_format_char(cmd[pend + 1], end)
 
-            check_format_char(cmd[end + 1], idx)
+            key = util.ensure_text(cmd[end + 2:pend])
+            out.append(_getquoted(params[key], conn))
+
+            start = pend + 2
 
         # Indexed parameters
-        elif cmd[idx] == '%':
+        else:
 
             # Validate that we don't mix formats
             if named_args_format is True:
@@ -903,26 +906,22 @@ def _combine_cmd_params(cmd, params, conn):
             elif named_args_format is None:
                 named_args_format = False
 
-            check_format_char(cmd[idx + 1], idx)
+            check_format_char(cmd[end + 1], end)
 
-            if arg_values is None:
-                arg_values = []
-
-            value = _getquoted(params[param_num], conn)
-            arg_values.append(value)
-
+            out.append(_getquoted(params[param_num], conn))
             param_num += 1
-            idx += 1
 
-        idx += 1
+            start = end + 2
+
+        end = cmd.find(b'%', start + 1)
 
     if named_args_format is False:
-        if len(arg_values) != len(params):
+        if param_num != len(params):
             raise TypeError(
                 "not all arguments converted during string formatting")
-        arg_values = tuple(arg_values)
 
-    if not arg_values:
-        return cmd % tuple()  # Required to unescape % chars
-    return cmd % arg_values
+    # add the last chunk of the command
+    out.append(cmd[start:])
+
+    return b''.join(out)
 
