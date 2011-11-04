@@ -182,7 +182,7 @@ class Connection(object):
     def _get_guc(self, name):
         """Return the value of a configuration parameter."""
         with self._lock:
-            query = 'SHOW %s' % name
+            query = self.ensure_bytes('SHOW %s' % name)
 
             if _green_callback:
                 pgres = self._execute_green(query)
@@ -193,7 +193,7 @@ class Connection(object):
                 raise exceptions.OperationalError("can't fetch %s" % name)
             rv = libpq.PQgetvalue(pgres, 0, 0)
             libpq.PQclear(pgres)
-            return rv
+            return self.ensure_text(rv)
 
     def _set_guc(self, name, value):
         """Set the value of a configuration parameter."""
