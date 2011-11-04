@@ -224,10 +224,11 @@ class QuotedString(_BaseAdapter):
         if self._conn and PG_VERSION >= 0x080104:
             err = libpq.c_int()
             libpq.PQescapeStringConn(
-                self._conn._pgconn, to, string, length, err)
+                self._conn._pgconn, to,
+                self._ensure_bytes(string), length, err)
 
         else:
-            libpq.PQescapeString(to, string, length)
+            libpq.PQescapeString(to, self._ensure_bytes(string), length)
 
         if self._conn and self._conn._equote:
             return b"E'" + to.value + b"'"
