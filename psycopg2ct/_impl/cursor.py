@@ -860,8 +860,8 @@ def _combine_cmd_params(cmd, params, conn):
         # TODO: why there is a space?
         if format_char not in b's ':
             raise ValueError(
-                "unsupported format character '%s' (0x%x) at index %d" %
-                (format_char, ord(format_char), pos))
+                "unsupported format character '%s' at index %d" %
+                (format_char, pos))
 
     out = []
     start = 0
@@ -871,12 +871,12 @@ def _combine_cmd_params(cmd, params, conn):
         out.append(cmd[start:end])
 
         # Escape
-        if cmd[end + 1] == b'%':
+        if cmd[end + 1:end + 2] == b'%':
             out.append(cmd[start:end])
             start = end + 1
 
         # Named parameters
-        elif cmd[end + 1] == b'(':
+        elif cmd[end + 1:end + 2] == b'(':
 
             # Validate that we don't mix formats
             if named_args_format is False:
@@ -891,7 +891,7 @@ def _combine_cmd_params(cmd, params, conn):
                 raise ProgrammingError(
                     "incomplete placeholder: '%(' without ')'")
 
-            check_format_char(cmd[pend + 1], end)
+            check_format_char(cmd[pend + 1:pend + 2], end)
 
             key = util.ensure_text(cmd[end + 2:pend])
             out.append(_getquoted(params[key], conn))
@@ -907,7 +907,7 @@ def _combine_cmd_params(cmd, params, conn):
             elif named_args_format is None:
                 named_args_format = False
 
-            check_format_char(cmd[end + 1], end)
+            check_format_char(cmd[end + 1:end + 2], end)
 
             out.append(_getquoted(params[param_num], conn))
             param_num += 1
