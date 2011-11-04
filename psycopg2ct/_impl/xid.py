@@ -1,7 +1,9 @@
 
 import re
+from base64 import b64encode, b64decode
 
 from psycopg2ct._impl import consts
+from psycopg2ct._impl import util
 
 
 class Xid(object):
@@ -33,8 +35,8 @@ class Xid(object):
 
     def as_tid(self):
         if self.format_id is not None:
-            gtrid = self.gtrid.encode('base64')[:-1]
-            bqual = self.bqual.encode('base64')[:-1]
+            gtrid = b64encode(util.ensure_bytes(self.gtrid))
+            bqual = b64encode(util.ensure_bytes(self.bqual))
             return "%d_%s_%s" % (int(self.format_id), gtrid, bqual)
         else:
             return self.gtrid
@@ -48,8 +50,8 @@ class Xid(object):
         if m is not None:
             try:
                 format_id = int(m.group(1))
-                gtrid = m.group(2).decode('base64')
-                bqual = m.group(3).decode('base64')
+                gtrid = util.ensure_text(b64decode(m.group(2)))
+                bqual = util.ensure_text(b64decode(m.group(3)))
                 return Xid(format_id, gtrid, bqual)
             except Exception:
                 pass

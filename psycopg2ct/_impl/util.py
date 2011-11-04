@@ -59,7 +59,7 @@ def quote_string(conn, value):
     from psycopg2ct._impl.adapters import QuotedString
     obj = QuotedString(value)
     obj.prepare(conn)
-    return obj.getquoted()
+    return conn.ensure_text(obj.getquoted())
 
 
 def get_exception_for_sqlstate(code):
