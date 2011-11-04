@@ -773,19 +773,16 @@ class Connection(object):
         def ensure_text(self, s):
             return s
 
-        def ensure_bytes(self, s):
-            return s
-
     else:
         def ensure_text(self, s):
             if not isinstance(s, unicode):
                 s = s.decode(self._py_enc or 'ascii', 'replace')
             return s
 
-        def ensure_bytes(self, s):
-            if isinstance(s, unicode):
-                s = s.encode(self._py_enc or 'ascii')
-            return s
+    def ensure_bytes(self, s):
+        if isinstance(s, unicode):
+            s = s.encode(self._py_enc or 'ascii')
+        return s
 
 def connect(dsn=None, database=None, host=None, port=None, user=None,
             password=None, async=False, connection_factory=Connection):
