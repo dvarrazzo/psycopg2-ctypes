@@ -724,7 +724,7 @@ class Connection(object):
         entries in the list.
 
         """
-        self.notices.append(message)
+        self.notices.append(self.ensure_text(message))
         length = len(self.notices)
         if length > 50:
             del self.notices[:length - 50]
