@@ -1,10 +1,13 @@
 import datetime
 import decimal
 import math
+import sys
 from time import localtime
 
 from psycopg2ct._impl import libpq
 
+if sys.version_info[0] >= 3:
+    buffer = memoryview
 
 string_types = {}
 
