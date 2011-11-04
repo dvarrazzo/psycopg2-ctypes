@@ -281,6 +281,7 @@ class Connection(object):
         return libpq.PQbackendPID(self._pgconn)
 
     def get_parameter_status(self, parameter):
+        parameter = self.ensure_bytes(parameter)
         return self.ensure_text(
             libpq.PQparameterStatus(self._pgconn, parameter))
 
@@ -769,10 +770,20 @@ class Connection(object):
     if sys.version_info[0] < 3:
         def ensure_text(self, s):
             return s
+
+        def ensure_bytes(self, s):
+            return s
+
     else:
         def ensure_text(self, s):
-            return s.decode(self._py_enc or 'ascii', 'replace')
+            if not isinstance(s, unicode):
+                s = s.decode(self._py_enc or 'ascii', 'replace')
+            return s
 
+        def ensure_bytes(self, s):
+            if isinstance(s, unicode):
+                s = s.encode(self._py_enc or 'ascii')
+            return s
 
 def connect(dsn=None, database=None, host=None, port=None, user=None,
             password=None, async=False, connection_factory=Connection):
@@ -795,6 +806,8 @@ def connect(dsn=None, database=None, host=None, port=None, user=None,
         if password is not None:
             args.append('password=%s' % password)
         dsn = ' '.join(args)
+
+    dsn = util.ensure_bytes(dsn)
 
     # Mimic the construction method as used by psycopg2, which notes:
     # Here we are breaking the connection.__init__ interface defined
