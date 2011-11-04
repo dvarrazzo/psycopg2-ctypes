@@ -35,8 +35,8 @@ class Xid(object):
 
     def as_tid(self):
         if self.format_id is not None:
-            gtrid = b64encode(util.ensure_bytes(self.gtrid))
-            bqual = b64encode(util.ensure_bytes(self.bqual))
+            gtrid = util.ensure_text(b64encode(util.ensure_bytes(self.gtrid)))
+            bqual = util.ensure_text(b64encode(util.ensure_bytes(self.bqual)))
             return "%d_%s_%s" % (int(self.format_id), gtrid, bqual)
         else:
             return self.gtrid
@@ -50,8 +50,10 @@ class Xid(object):
         if m is not None:
             try:
                 format_id = int(m.group(1))
-                gtrid = util.ensure_text(b64decode(m.group(2)))
-                bqual = util.ensure_text(b64decode(m.group(3)))
+                gtrid = util.ensure_text(b64decode(
+                    util.ensure_bytes(m.group(2))))
+                bqual = util.ensure_text(b64decode(
+                    util.ensure_bytes(m.group(3))))
                 return Xid(format_id, gtrid, bqual)
             except Exception:
                 pass
