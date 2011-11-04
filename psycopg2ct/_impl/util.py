@@ -1,7 +1,27 @@
+import sys
+
 from psycopg2ct._impl import exceptions
 from psycopg2ct._impl import libpq
 from psycopg2ct._impl.adapters import QuotedString
 
+
+if sys.version_info[0] < 3:
+    def ensure_text(s):
+        return s
+
+    def ensure_bytes(s):
+        return s
+
+else:
+    def ensure_text(s):
+        if not isinstance(s, unicode):
+            s = s.decode('utf8', 'replace')
+        return s
+
+    def ensure_bytes(s):
+        if isinstance(s, unicode):
+            s = s.encode('utf8')
+        return s
 
 def pq_set_non_blocking(pgconn, arg, raise_exception=False):
     ret = libpq.PQsetnonblocking(pgconn, arg)
